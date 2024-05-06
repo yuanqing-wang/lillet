@@ -40,7 +40,7 @@ class LilletLayer(torch.nn.Module):
 
         # (..., H, n, n, N_RBF)
         delta_x_norm_smeared = self.smearing(delta_x_norm)
-        delta_x_norm_smeared = delta_x_norm_smeared / delta_x_norm
+        delta_x_norm_smeared = delta_x_norm_smeared / (delta_x_norm + 1e-6) ** 2
 
         # (..., H, n, n, N_RBF, 3)
         delta_x_basis = delta_x.unsqueeze(-2) * delta_x_norm_smeared.unsqueeze(-1)
