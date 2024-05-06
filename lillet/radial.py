@@ -68,7 +68,7 @@ class ExpNormalSmearing(torch.nn.Module):
         cutoff_upper=CUTOFF_UPPER,
         num_rbf=NUM_RBF,
         trainable=False,
-        cutoff=True,
+        cutoff=False,
     ):
         super(ExpNormalSmearing, self).__init__()
         self.cutoff_lower = cutoff_lower

@@ -28,15 +28,19 @@ class InductiveMapping(Mapping):
         self.W_fine_grain = torch.nn.Parameter(
             torch.randn(heads, fine_grain_particles, coarse_grain_particles)
         )
-        self.W_coarse_grain = torch.nn.Parameter(
-            torch.randn(heads, coarse_grain_particles, fine_grain_particles)
-        )
+        # self.W_coarse_grain = torch.nn.Parameter(
+        #     torch.randn(heads, coarse_grain_particles, fine_grain_particles)
+        # )
 
     def forward(
             self,
-            h: torch.Tensor,
+            # h: torch.Tensor,
             x: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        h = torch.einsum("hfc, fd -> hc", self.W_fine_grain, x)
-        x = torch.einsum("hfc, fd -> hc", self.W_fine_grain, h)
-        return h, x
+        # h = torch.einsum("hfc, ...fd -> ...hc", self.W_fine_grain, x)
+        x = torch.einsum(
+            "hfc, ...fd -> ...hcd", 
+            self.W_fine_grain.softmax(-2), 
+            x,
+        )
+        return x

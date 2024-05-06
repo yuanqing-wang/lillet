@@ -1,2 +1,2 @@
 # lillet
-Lightweight, Linear-complexity Equivariant Transformer
+Lightweight, Long-range, Linear-complexity Equivariant Transformer
