@@ -32,7 +32,7 @@ class LilletModel(pl.LightningModule):
             hidden_features=hidden_features,
             activation=activation,
         )
-
+        self.validation_step_outputs = []
     def forward(
             self,
             x: torch.Tensor,
@@ -45,9 +45,9 @@ class LilletModel(pl.LightningModule):
         E_hat = self(R)
         F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
         loss_energy = torch.nn.functional.mse_loss(E_hat, E)
-        self.log("train_loss_energy", loss_energy)
+        self.log("train_loss_energy", loss_energy.item() ** 0.5 * self.hparams.E_STD)
         loss_force = torch.nn.functional.mse_loss(F_hat, F)
-        self.log("train_loss_force", loss_force)
+        self.log("train_loss_force", loss_force.item() ** 0.5 * self.hparams.E_STD)
         loss = 1e-2 * loss_energy + loss_force
         return loss
     
@@ -55,7 +55,7 @@ class LilletModel(pl.LightningModule):
         R, E, F, Z = batch
         R.requires_grad_(True)
         with torch.set_grad_enabled(True):
-            E_hat = self(R) * self.E_STD + self.E_MEAN
+            E_hat = self(R) * self.hparams.E_STD + self.hparams.E_MEAN
             F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
         loss_energy = torch.nn.functional.l1_loss(E_hat, E)
         loss_force = torch.nn.functional.l1_loss(F_hat, F)
@@ -72,15 +72,15 @@ class LilletModel(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(), 
-            lr=self.lr, 
-            weight_decay=self.weight_decay
+            lr=self.hparams.lr, 
+            weight_decay=self.hparams.weight_decay
         )
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, 
             mode="min", 
-            factor=self.factor, 
-            patience=self.patience, 
+            factor=self.hparams.factor, 
+            patience=self.hparams.patience, 
             min_lr=1e-6,
             verbose=True,
         )
