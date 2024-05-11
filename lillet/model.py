@@ -1,8 +1,31 @@
+from re import L
 import torch
 import lightning as pl
-from .layer import LilletLayer
-from .mapping import InductiveMapping
-from .radial import ExpNormalSmearing
+from .layer import Linear, Outer
+
+class SimpleOuterModel(torch.nn.Module):
+    def __init__(
+            self,
+            in_particles: int,
+            hidden_features: int,
+            activation: torch.nn.Module = torch.nn.SiLU(),
+    ):
+        super().__init__()
+        self.outer = Outer()
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(in_particles ** 2, hidden_features),
+            activation,
+            torch.nn.Linear(hidden_features, 1),
+        )
+
+    def forward(
+            self,
+            X: torch.Tensor,
+    ):
+        X = self.outer(X)
+        X = X.flatten(-2, -1)
+        X = self.fc(X)
+        return X
 
 
 class LilletModel(pl.LightningModule):
@@ -23,13 +46,8 @@ class LilletModel(pl.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.layer = LilletLayer(
-            mapping=InductiveMapping(
-                fine_grain_particles=fine_grain_particles,
-                coarse_grain_particles=coarse_grain_particles,
-                heads=heads,
-            ),
-            smearing=ExpNormalSmearing(num_rbf=num_rbf),
+        self.layer = SimpleOuterModel(
+            in_particles=fine_grain_particles,
             hidden_features=hidden_features,
             activation=activation,
         )
