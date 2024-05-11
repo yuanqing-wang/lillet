@@ -4,6 +4,7 @@ from .layer import LilletLayer
 from .mapping import InductiveMapping
 from .radial import ExpNormalSmearing
 
+
 class LilletModel(pl.LightningModule):
     def __init__(
             self,
@@ -33,6 +34,8 @@ class LilletModel(pl.LightningModule):
             activation=activation,
         )
         self.validation_step_outputs = []
+        self.test_step_outputs = []
+
     def forward(
             self,
             x: torch.Tensor,
@@ -69,6 +72,25 @@ class LilletModel(pl.LightningModule):
         self.log("val_loss_force", loss_force)
         self.validation_step_outputs.clear()
 
+    def test_step(self, batch, batch_idx):
+        self.testing = False
+        R, E, F, Z = batch
+        R.requires_grad_(True)
+        with torch.set_grad_enabled(True):
+            E_hat = self(R) * self.hparams.E_STD + self.hparams.E_MEAN
+            F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
+        loss_energy = torch.nn.functional.l1_loss(E_hat, E)
+        loss_force = torch.nn.functional.l1_loss(F_hat, F)
+        self.test_step_outputs.append((loss_energy, loss_force))
+    
+    def on_test_epoch_end(self):
+        loss_energy, loss_force = zip(*self.test_step_outputs)
+        loss_energy = torch.stack(loss_energy).mean()
+        loss_force = torch.stack(loss_force).mean()
+        self.log("test_loss_energy", loss_energy)
+        self.log("test_loss_force", loss_force)
+        self.test_step_outputs.clear()
+
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(), 
@@ -81,7 +103,7 @@ class LilletModel(pl.LightningModule):
             mode="min", 
             factor=self.hparams.factor, 
             patience=self.hparams.patience, 
-            min_lr=1e-6,
+            min_lr=1e-8,
             verbose=True,
         )
 
@@ -91,3 +113,21 @@ class LilletModel(pl.LightningModule):
         }
     
         return [optimizer], [scheduler]
+    
+    def test_with_grad(self, data):
+        losses_energy, losses_force = [], []
+        for R, E, F, Z in data.test_dataloader():
+            R.requires_grad = True
+            if torch.cuda.is_available():
+                R = R.cuda()
+                E = E.cuda()
+                F = F.cuda()
+                Z = Z.cuda()
+            with torch.set_grad_enabled(True):
+                E_hat = self(R) * self.hparams.E_STD + self.hparams.E_MEAN
+                F_hat = -torch.autograd.grad(E_hat.sum(), R, create_graph=True)[0]
+            loss_energy = torch.nn.functional.l1_loss(E_hat, E)
+            loss_force = torch.nn.functional.l1_loss(F_hat, F)
+            losses_energy.append(loss_energy)
+            losses_force.append(loss_force)
+        return torch.stack(losses_energy).mean(), torch.stack(losses_force).mean()

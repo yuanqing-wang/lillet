@@ -165,3 +165,9 @@ cython_debug/
 *.ckpt
 *.csv
 *.yaml
+
+*.pkl
+*.json
+*.out.*
+*.stdout
+*.validate_storage_marker

@@ -5,4 +5,4 @@
 #BSUB -W 12:00
 #BSUB -n 1
 
-python run.py --data $DATA
+python tune.py
