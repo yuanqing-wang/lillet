@@ -1,6 +1,7 @@
 import torch
 import roma
 import math
+EPSILON = 1e-5
 
 class Linear(torch.nn.Module):
     """ Linearly mixing the particles.
@@ -37,24 +38,33 @@ class Linear(torch.nn.Module):
             X,
         )
     
-class Scale(torch.nn.Module):
-    def __init__(
-            self,
-            heads: int,
-            in_particles: int,
-    ):
-        super().__init__()
-        self.W = torch.nn.Parameter(
-            torch.randn(
-                heads, in_particles,
-            )
-        )
 
+class Spring(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.K = torch.nn.Parameter(torch.tensor(1.0))
+        self.B = torch.nn.Parameter(torch.tensor(0.0))
+        
     def forward(
             self,
             X: torch.Tensor,
     ):
-        return X * self.W.tanh().unsqueeze(-1)
-    
+        # compute distance
+        delta_X = X[:, :, None] - X[:, None, :]
+        distance = torch.norm(delta_X, dim=-1, keepdim=True)
+        delta_X_direction = delta_X / (distance + EPSILON)
 
+        # compute the force
+        force_magnitude = self.K * (distance - self.B)
+        force = force_magnitude * delta_X_direction
+        aggregated_force = torch.sum(force, dim=-2)
+        X = X + aggregated_force
+        return X
+
+class Outer(torch.nn.Module):
+    def __init__(
+            self,
+    ):
+        super().__init__()
+    
 
