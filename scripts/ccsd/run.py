@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import lightning as pl
 from lightning.pytorch.loggers import CSVLogger
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
-class _TuneReportCallback(TuneReportCallback, pl.Callback):
-    pass
+# from ray.tune.integration.pytorch_lightning import TuneReportCallback
+# class _TuneReportCallback(TuneReportCallback, pl.Callback):
+#     pass
 
 def run(args):
     from lillet.data.ccsd import CCSD

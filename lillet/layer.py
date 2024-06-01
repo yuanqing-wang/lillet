@@ -50,7 +50,7 @@ class Spring(torch.nn.Module):
             X: torch.Tensor,
     ):
         # compute distance
-        delta_X = X[:, :, None] - X[:, None, :]
+        delta_X = X.unsqueeze(-2) - X.unsqueeze(-1)
         distance = torch.norm(delta_X, dim=-1, keepdim=True)
         delta_X_direction = delta_X / (distance + EPSILON)
 
@@ -64,7 +64,58 @@ class Spring(torch.nn.Module):
 class Outer(torch.nn.Module):
     def __init__(
             self,
+            num_particles: int,
+            num_dummies: int,
+            num_heads: int, 
     ):
         super().__init__()
+        self.W_left = torch.nn.Parameter(
+            torch.randn(
+                num_heads, num_particles, num_dummies,
+            )
+        )
+
+        self.W_right = torch.nn.Parameter(
+            torch.randn(
+                num_heads, num_particles, num_dummies,
+            )
+        )
+
+        self.fc = torch.nn.Linear(
+            num_heads * num_particles * num_dummies,
+            1,
+        )
+
+    def forward(
+            self,
+            X: torch.Tensor,
+    ):
+        # (NUM_HEADS, N, N, 3)
+        delta_X = X.unsqueeze(-2) - X.unsqueeze(-1)
+
+        # (NUM_HEADS, N, D, 3)
+        X_left = torch.einsum(
+            "habt, hbd -> hadt",
+            delta_X,
+            self.W_left,
+        )
+
+        X_right = torch.einsum(
+            "habt, hbd -> hadt",
+            delta_X,
+            self.W_right,
+        )
+
+        # (NUM_HEADS, N, D)
+        X_att = torch.einsum(
+            "...at, ...at -> ...a",
+            X_left,
+            X_right,
+        )
+
+        X_att = X_att.flatten()
+
+
+
     
 

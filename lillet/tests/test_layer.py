@@ -3,7 +3,6 @@ HEADS = 4
 IN_PARTICLES = 20
 OUT_PARTICLES = 10
 
-
 def test_linear_invariance(equivariance_test_utils):
     from lillet.layer import Linear
     translation, rotation, reflection = equivariance_test_utils

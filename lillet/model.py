@@ -1,42 +1,38 @@
 from re import L
 import torch
 import lightning as pl
-from .layer import Linear, Outer
+from .layer import Linear, Spring, Outer
 
-class SimpleOuterModel(torch.nn.Module):
+class LilletModel(torch.nn.Module):
     def __init__(
             self,
             in_particles: int,
-            hidden_features: int,
-            activation: torch.nn.Module = torch.nn.SiLU(),
+            hidden_particles: int,
+            depth: int,
+            heads: int,
     ):
         super().__init__()
-        self.outer = Outer()
-        self.fc = torch.nn.Sequential(
-            torch.nn.Linear(in_particles ** 2, hidden_features),
-            activation,
-            torch.nn.Linear(hidden_features, 1),
-        )
-
+        self.layers = torch.nn.ModuleList([])
+        for idx in range(depth):
+            self.layers.append(Linear(in_particles, hidden_particles, heads))
+            self.layers.append(Spring())
+            in_particles = hidden_particles
+    
     def forward(
             self,
-            X: torch.Tensor,
+            X,
     ):
-        X = self.outer(X)
-        X = X.flatten(-2, -1)
-        X = self.fc(X)
+        for layer in self.layers:
+            X = layer(X)
         return X
 
-
-class LilletModel(pl.LightningModule):
+class WrappedLilletModel(pl.LightningModule):
     def __init__(
             self,
-            fine_grain_particles: int,
-            coarse_grain_particles: int,
+            in_particles: int,
+            hidden_particles: int,
+            depth: int,
             heads: int,
-            num_rbf: int,
-            hidden_features: int,
-            activation: torch.nn.Module = torch.nn.SiLU(),
             lr: float = 1e-3,
             weight_decay: float = 1e-4,
             factor: float = 0.5,
@@ -46,10 +42,11 @@ class LilletModel(pl.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.layer = SimpleOuterModel(
-            in_particles=fine_grain_particles,
-            hidden_features=hidden_features,
-            activation=activation,
+        self.model = LilletModel(
+            in_particles=in_particles,
+            hidden_particles=hidden_particles,
+            depth=depth,
+            heads=heads,
         )
         self.validation_step_outputs = []
         self.test_step_outputs = []
@@ -58,7 +55,7 @@ class LilletModel(pl.LightningModule):
             self,
             x: torch.Tensor,
     ):
-        return self.layer(x)
+        return self.model(x)
 
     def training_step(self, batch, batch_idx):
         R, E, F, Z = batch
