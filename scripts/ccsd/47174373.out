@@ -1,0 +1,19 @@
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+Missing logger folder: logs/ethanol
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+/scratch/yw8052/miniconda3/envs/lillet/lib/python3.12/site-packages/torch/optim/lr_scheduler.py:28: UserWarning: The verbose parameter is deprecated. Please use get_last_lr() to access the learning rate.
+  warnings.warn("The verbose parameter is deprecated. Please use get_last_lr() "
+
+  | Name  | Type        | Params
+--------------------------------------
+0 | model | LilletModel | 17.4 M
+--------------------------------------
+17.4 M    Trainable params
+0         Non-trainable params
+17.4 M    Total params
+69.768    Total estimated model params size (MB)
+SLURM auto-requeueing enabled. Setting signal handlers.
+/scratch/yw8052/lillet/lillet/data/.cache/

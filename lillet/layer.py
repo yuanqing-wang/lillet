@@ -33,7 +33,7 @@ class Linear(torch.nn.Module):
             X: torch.Tensor,
     ):
         return torch.einsum(
-            "hio, hid -> hod",
+            "...hio, ...hit -> ...hot",
             self.W.softmax(dim=-2),
             X,
         )
@@ -64,26 +64,27 @@ class Spring(torch.nn.Module):
 class Outer(torch.nn.Module):
     def __init__(
             self,
-            num_particles: int,
-            num_dummies: int,
-            num_heads: int, 
+            particles: int,
+            dummies: int,
+            heads: int, 
     ):
         super().__init__()
         self.W_left = torch.nn.Parameter(
             torch.randn(
-                num_heads, num_particles, num_dummies,
+                heads, particles, dummies,
             )
         )
 
         self.W_right = torch.nn.Parameter(
             torch.randn(
-                num_heads, num_particles, num_dummies,
+                heads, particles, dummies,
             )
         )
 
-        self.fc = torch.nn.Linear(
-            num_heads * num_particles * num_dummies,
-            1,
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(heads * particles * dummies, dummies),
+            torch.nn.SiLU(),
+            torch.nn.Linear(dummies, 1),
         )
 
     def forward(
@@ -91,17 +92,20 @@ class Outer(torch.nn.Module):
             X: torch.Tensor,
     ):
         # (NUM_HEADS, N, N, 3)
-        delta_X = X.unsqueeze(-2) - X.unsqueeze(-1)
+        delta_X = X.unsqueeze(-2) - X.unsqueeze(-3)
+        distance = ((delta_X ** 2).relu() + EPSILON).sqrt()
+        delta_X_direction = delta_X / distance
+        delta_X = delta_X_direction * (-distance).exp()
 
         # (NUM_HEADS, N, D, 3)
         X_left = torch.einsum(
-            "habt, hbd -> hadt",
+            "...habt, ...hbd -> ...hadt",
             delta_X,
             self.W_left,
         )
 
         X_right = torch.einsum(
-            "habt, hbd -> hadt",
+            "...habt, ...hbd -> ...hadt",
             delta_X,
             self.W_right,
         )
@@ -113,7 +117,9 @@ class Outer(torch.nn.Module):
             X_right,
         )
 
-        X_att = X_att.flatten()
+        X_att = X_att.reshape(X_att.shape[0], -1)
+        Y = self.fc(X_att)
+        return Y
 
 
 

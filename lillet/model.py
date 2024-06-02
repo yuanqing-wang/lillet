@@ -17,13 +17,22 @@ class LilletModel(torch.nn.Module):
             self.layers.append(Linear(in_particles, hidden_particles, heads))
             self.layers.append(Spring())
             in_particles = hidden_particles
+        self.readout = Outer(
+            particles=hidden_particles,
+            dummies=hidden_particles,
+            heads=heads,
+        )
+        self.heads = heads
     
     def forward(
             self,
             X,
     ):
+        X = X.unsqueeze(1)
+        X = X.repeat_interleave(self.heads, dim=1)
         for layer in self.layers:
             X = layer(X)
+        X = self.readout(X)
         return X
 
 class WrappedLilletModel(pl.LightningModule):
