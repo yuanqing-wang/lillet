@@ -1,15 +1,16 @@
-for coarse_grain_particles in 8; do
+for coarse_grain_particles in 16; do
 for heads in 4; do
-for num_rbf in 32 64; do
-for hidden_features in 32 64; do
-for lr in 1e-2 1e-3; do
-for weight_decay in 1e-5 1e-10; do
+for num_rbf in 50; do
+for hidden_features in 64; do
+for lr in 1e-3; do
+for weight_decay in 1e-10; do
 
 bsub \
     -q gpuqueue \
     -n 1 \
-    -W 4:00 \
+    -W 12:00 \
     -R "rusage[mem=10] span[ptile=1]" \
+    -gpu "num=1:j_exclusive=yes" \
     -o %J.stdout \
     python run.py \
     --data ethanol \
