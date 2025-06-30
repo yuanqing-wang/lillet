@@ -19,7 +19,7 @@ def test_linear_invariance(equivariance_test_utils):
 def test_spring_invariance(equivariance_test_utils):
     from lillet.layer import Spring
     translation, rotation, reflection = equivariance_test_utils
-    layer = Spring()
+    layer = Spring(IN_PARTICLES, HEADS)
     x = torch.randn(HEADS, IN_PARTICLES, 3)
     y = layer(x)
     y_rotation = layer(rotation(x))
