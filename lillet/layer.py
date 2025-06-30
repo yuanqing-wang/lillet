@@ -80,11 +80,17 @@ class Layer(torch.nn.Module):
             out_particles: int,
             hidden_features: int,
             heads: int,
+            activation: torch.nn.Module = torch.nn.SiLU(),
     ):
         super().__init__()
         self.linear = Linear(in_particles, out_particles, heads)
         self.spring = Spring(out_particles, heads)
         self.smearing = ExpNormalSmearing(num_rbf=hidden_features)
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(heads * out_particles * out_particles * hidden_features, hidden_features),
+            activation,
+            torch.nn.Linear(hidden_features, hidden_features),
+        )
 
     def forward(
             self,
@@ -92,6 +98,9 @@ class Layer(torch.nn.Module):
     ):
         X = self.linear(X)
         X = self.spring(X)
-        H = self.smearing(X).flatten(-2, -1)
+        delta_X = X.unsqueeze(-2) - X.unsqueeze(-3)
+        distance = torch.norm(delta_X, dim=-1, keepdim=True)
+        H = self.smearing(distance).flatten(-4, -1)
+        H = self.fc(H)
         return X, H
 

@@ -2,6 +2,7 @@ import torch
 HEADS = 4
 IN_PARTICLES = 20
 OUT_PARTICLES = 10
+HIDDEN_FEATURES = 16
 
 def test_linear_invariance(equivariance_test_utils):
     from lillet.layer import Linear
@@ -28,3 +29,19 @@ def test_spring_invariance(equivariance_test_utils):
     assert torch.allclose(y_rotation, rotation(y), atol=1e-3, rtol=1e-3)
     assert torch.allclose(y_reflection, reflection(y), atol=1e-3, rtol=1e-3)
     assert torch.allclose(y_translation, translation(y), atol=1e-3, rtol=1e-3)
+    
+def test_layer(equivariance_test_utils):
+    from lillet.layer import Layer
+    translation, rotation, reflection = equivariance_test_utils
+    layer = Layer(IN_PARTICLES, OUT_PARTICLES, HIDDEN_FEATURES, HEADS)
+    x = torch.randn(HEADS, IN_PARTICLES, 3)
+    y, h = layer(x)
+    y_rotation, h_rotation = layer(rotation(x))
+    y_reflection, h_reflection = layer(reflection(x))
+    y_translation, h_translation = layer(translation(x))
+    assert torch.allclose(y_rotation, rotation(y), atol=1e-3, rtol=1e-3)
+    assert torch.allclose(y_reflection, reflection(y), atol=1e-3, rtol=1e-3)
+    assert torch.allclose(y_translation, translation(y), atol=1e-3, rtol=1e-3)
+    assert torch.allclose(h_rotation, h, atol=1e-3, rtol=1e-3)
+    assert torch.allclose(h_reflection, h, atol=1e-3, rtol=1e-3)
+    assert torch.allclose(h_translation, h, atol=1e-3, rtol=1e-3)
