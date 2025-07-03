@@ -1,7 +1,7 @@
 from re import L
 import torch
 import lightning as pl
-from .layer import Linear, Spring, Outer
+from .layer import Layer
 
 class LilletModel(torch.nn.Module):
     def __init__(
@@ -9,20 +9,29 @@ class LilletModel(torch.nn.Module):
             in_particles: int,
             hidden_particles: int,
             depth: int,
+            hidden_features: int,
             heads: int,
+            activation: torch.nn.Module = torch.nn.SiLU(),
     ):
         super().__init__()
         self.layers = torch.nn.ModuleList([])
         for idx in range(depth):
-            self.layers.append(Linear(in_particles, hidden_particles, heads))
-            self.layers.append(Spring())
+            self.layers.append(
+                Layer(
+                    in_particles=in_particles,
+                    out_particles=hidden_particles,
+                    hidden_features=hidden_features,
+                    heads=heads,
+                    activation=activation,
+                )
+            )
             in_particles = hidden_particles
-        self.readout = Outer(
-            particles=hidden_particles,
-            dummies=hidden_particles,
-            heads=heads,
+            
+        self.out = torch.nn.Sequential(
+            torch.nn.Linear(hidden_features * depth, hidden_particles),
+            activation,
+            torch.nn.Linear(hidden_particles, 1),
         )
-        self.heads = heads
     
     def forward(
             self,
@@ -30,9 +39,12 @@ class LilletModel(torch.nn.Module):
     ):
         X = X.unsqueeze(1)
         X = X.repeat_interleave(self.heads, dim=1)
+        _H = []
         for layer in self.layers:
-            X = layer(X)
-        X = self.readout(X)
+            X, H = layer(X)
+            _H.append(H)
+        _H = torch.stack(_H, dim=-1).flatten(-2, -1)
+        X = self.out(_H)
         return X
 
 class WrappedLilletModel(pl.LightningModule):
@@ -40,6 +52,7 @@ class WrappedLilletModel(pl.LightningModule):
             self,
             in_particles: int,
             hidden_particles: int,
+            hidden_features: int,
             depth: int,
             heads: int,
             lr: float = 1e-3,
@@ -54,6 +67,7 @@ class WrappedLilletModel(pl.LightningModule):
         self.model = LilletModel(
             in_particles=in_particles,
             hidden_particles=hidden_particles,
+            hidden_features=hidden_features,
             depth=depth,
             heads=heads,
         )

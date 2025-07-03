@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 import lightning as pl
-from lightning.pytorch.loggers import CSVLogger
-# from ray.tune.integration.pytorch_lightning import TuneReportCallback
-# class _TuneReportCallback(TuneReportCallback, pl.Callback):
-#     pass
+import wandb
+wandb.login(
+    key="56e4fb388e96d11a9ac1fe4bc39e707a0199f2fc"
+)
+from lightning.pytorch.loggers import WandbLogger
 
 def run(args):
     from lillet.data.ccsd import CCSD
@@ -14,7 +15,8 @@ def run(args):
     from lillet.model import WrappedLilletModel
     model = WrappedLilletModel(
         in_particles=data.num_atoms,
-        hidden_particles=args.hidden_particles,
+        hidden_particles=args.hidden_features,
+        hidden_features=args.hidden_features,
         heads=args.heads,
         depth=args.depth,
         lr=args.lr,
@@ -25,14 +27,19 @@ def run(args):
         E_STD=data.E_STD,
     )
 
+    import datetime
+    date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    logger = WandbLogger(project="lillet", name=date)
+
     trainer = pl.Trainer(
         max_epochs=10000, 
         log_every_n_steps=1, 
-        logger=CSVLogger("logs", name=args.data),
+        logger=logger,
         devices="auto",
         accelerator="auto",
         enable_progress_bar=False,
     )
+    
     trainer.fit(model, data)
     model.unfreeze()
     model = WrappedLilletModel.load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
@@ -43,7 +50,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Run MD simulation")
     parser.add_argument("--data", type=str, default="ethanol")
-    parser.add_argument("--hidden_particles", type=int, default=128)
+    parser.add_argument("--hidden_features", type=int, default=128)
     parser.add_argument("--heads", type=int, default=8)
     parser.add_argument("--depth", type=int, default=4)
     parser.add_argument("--lr", type=float, default=1e-3)
